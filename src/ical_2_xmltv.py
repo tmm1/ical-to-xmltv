@@ -13,7 +13,7 @@ from xmltv import xmltv_helpers
 from xmltv.models import xmltv
 from pathlib import Path
 import sys
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import requests
 
 xmltv_file = Path("./basic.xml")
@@ -24,31 +24,24 @@ channel_id = sys.argv[2]
 channel = None
 tv = xmltv.Tv()
 my_cal = icalendar.Calendar.from_ical(requests.get(url).text)
-events = recurring_ical_events.of(my_cal).between(datetime.now() - timedelta(days=1), datetime.now() + timedelta(days=14))
+now = datetime.now()
+range_start = now - timedelta(days=1)
+range_end = now + timedelta(days=14)
 
-for a_program in my_cal.walk():
-    if not channel:
-        channel = xmltv.Channel(
-            id=channel_id,
-            display_name=[a_program.get("X-WR-CALNAME").title()]
-        )
-        tv.channel.append(channel)
-        break
-
-for a_program in events:
-    start_time = a_program.get("DTSTART")
+def record_event(e):
+    start_time = e.get("DTSTART")
     if start_time:
         start_time = start_time.dt
         start_time = start_time.strftime('%Y%m%d%H%M%S %Z')
-    end_time = a_program.get("DTEND")
+    end_time = e.get("DTEND")
     if end_time:
         end_time = end_time.dt
         end_time = end_time.strftime('%Y%m%d%H%M%S %Z')
     else:
         # if there is no end time the end time is set as the start time
         end_time = start_time
-    summary = a_program.get("SUMMARY").title()
-    description = a_program.get("DESCRIPTION")
+    summary = e.get("SUMMARY").title()
+    description = e.get("DESCRIPTION")
     if description:
         description = description.title()
     program = xmltv.Programme(
@@ -59,6 +52,39 @@ for a_program in events:
         title=summary
     )
     tv.programme.append(program)
+
+
+for a_program in my_cal.walk():
+    if not channel:
+        channel = xmltv.Channel(
+            id=channel_id,
+            display_name=[a_program.get("X-WR-CALNAME").title()]
+        )
+        tv.channel.append(channel)
+        continue
+    if a_program.get("TZID") or a_program.get("TZNAME"):
+        # skip the lines about timezone information
+        continue
+    start_time = a_program.get("DTSTART")
+    if start_time:
+        start_time = start_time.dt
+        if isinstance(start_time, datetime):
+            if start_time < range_start.astimezone():
+                # skip the events that are too old
+                continue
+        elif isinstance(start_time, date):
+            if start_time < range_start.date():
+                # skip the events that are too old
+                continue
+        else:
+            continue
+    else:
+        continue
+    record_event(a_program)
+
+events = recurring_ical_events.of(my_cal).between(range_start, range_end)
+for e in events:
+    record_event(e)
 
 xmltv_helpers.write_file_from_xml(xmltv_file, tv)
 
