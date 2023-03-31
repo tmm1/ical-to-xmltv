@@ -32,11 +32,11 @@ def record_event(e):
     start_time = e.get("DTSTART")
     if start_time:
         start_time = start_time.dt
-        start_time = start_time.strftime('%Y%m%d%H%M%S %Z')
+        start_time = start_time.strftime('%Y%m%d%H%M%S %z')
     end_time = e.get("DTEND")
     if end_time:
         end_time = end_time.dt
-        end_time = end_time.strftime('%Y%m%d%H%M%S %Z')
+        end_time = end_time.strftime('%Y%m%d%H%M%S %z')
     else:
         # if there is no end time the end time is set as the start time
         end_time = start_time
