@@ -8,10 +8,12 @@ description: a really straight forward, quick and dirty iCal to xmltv converter
 """
 
 import icalendar
+import recurring_ical_events
 from xmltv import xmltv_helpers
 from xmltv.models import xmltv
 from pathlib import Path
 import sys
+from datetime import datetime, timedelta
 import requests
 
 xmltv_file = Path("./basic.xml")
@@ -19,22 +21,21 @@ xmltv_file = Path("./basic.xml")
 url = sys.argv[1]
 channel_id = sys.argv[2]
 
-my_cal = icalendar.Calendar.from_ical(requests.get(url).text)
 channel = None
 tv = xmltv.Tv()
+my_cal = icalendar.Calendar.from_ical(requests.get(url).text)
+events = recurring_ical_events.of(my_cal).between(datetime.now() - timedelta(days=1), datetime.now() + timedelta(days=14))
 
 for a_program in my_cal.walk():
-    # the first elements are descriptive of the calendar and the timezones
     if not channel:
         channel = xmltv.Channel(
             id=channel_id,
             display_name=[a_program.get("X-WR-CALNAME").title()]
         )
         tv.channel.append(channel)
-        continue
-    if a_program.get("TZID") or a_program.get("TZNAME"):
-        # skip the lines about timezone information
-        continue
+        break
+
+for a_program in events:
     start_time = a_program.get("DTSTART")
     if start_time:
         start_time = start_time.dt
