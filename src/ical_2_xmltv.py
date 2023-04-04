@@ -32,11 +32,9 @@ def record_event(e):
     start_time = e.get("DTSTART")
     if start_time:
         start_time = start_time.dt
-        start_time = start_time.strftime('%Y%m%d%H%M%S %z')
     end_time = e.get("DTEND")
     if end_time:
         end_time = end_time.dt
-        end_time = end_time.strftime('%Y%m%d%H%M%S %z')
     else:
         # if there is no end time the end time is set as the start time
         end_time = start_time
@@ -46,9 +44,13 @@ def record_event(e):
         description = description.title()
     program = xmltv.Programme(
         channel=channel_id,
-        start=start_time,
-        stop=end_time,
+        start=start_time.strftime('%Y%m%d%H%M%S %z'),
+        stop=end_time.strftime('%Y%m%d%H%M%S %z'),
         sub_title=description,
+        episode_num=xmltv.EpisodeNum(
+            system="original-air-date",
+            content=[start_time.strftime("%Y-%m-%d")]
+        ),
         title=summary
     )
     tv.programme.append(program)
